@@ -1,0 +1,71 @@
+	// CREATE
+	
+	@RequestMapping(value="/rfc", method=RequestMethod.POST)
+
+	public ResponseEntity<Void> newReadingFromCar(String string) {
+		
+		System.out.println("recebido: " + string);
+		try {
+			ReadingFromCar r = ReadingFromCarUtils.makeReadingFromHashMap(StringWorker.getHashMapFromString(string));
+			r.getElement().setPredictedValue(classifyReadingFromCar(r));
+			
+			System.out.println("Classificada: " + r.toString());
+			service.save(r);
+			
+			return Response.status(200).entity(string).build();
+		}  
+		catch (Exception e) {
+			return Response.status(204).entity(string).build();
+		}
+	}
+
+	private String classifyReadingFromCar(ReadingFromCar reading) {
+		ReadingFromCarUtils rfu = new ReadingFromCarUtils();
+		
+		Instance instance = rfu.readingFromCarToWekaInstance(reading);
+		
+		rfu.getDataset().add(instance);
+		
+		double value = -1;
+		try {
+			value = mlm.getCls().classifyInstance(rfu.getDataset().get(0));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		//get the name of the class value
+		String prediction = null; 
+		prediction = new String(rfu.getDataset().classAttribute().value((int)value));
+		
+		return prediction;
+
+	}
+	
+		// FIND LAST BY VEHICLE ID
+	//returns last classified data from one car
+	@RequestMapping(value="/rfc/vehicle/last", method=RequestMethod.GET)
+	public ReadingFromCar findLastReadingByVehicleId(@RequestParam("vehicleId") String vehicleId) {
+		System.out.println(vehicleId);
+		ReadingFromCar readingFromCar;
+		try {
+			readingFromCar = service.findLastReadingByVehicleId(vehicleId);
+			return readingFromCar;
+		}  catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+	
+		// FIND ALL BY VEHICLE ID
+	//returns all classified data from one car
+	@RequestMapping(value="/rfc/vehicle", method=RequestMethod.GET)
+	public ArrayList<ReadingFromCar> findByVehicleId(@RequestParam("vehicleId") String vehicleId) {
+		ArrayList<ReadingFromCar> readingsFromCar = new ArrayList<ReadingFromCar>();
+		try {
+			readingsFromCar = service.findByVehicleId(vehicleId);
+			return readingsFromCar;
+		}  catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
